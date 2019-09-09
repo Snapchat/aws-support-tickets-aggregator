@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Required role in member accounts'
+Parameters:
+  GetSupportInfoRoleName:
+    Type: String
+    Default: "GetSupportInfoRole"
+  CentralAggregatorAwsAccountId:
+    Type: Number
+    Description: "Account Id of the central aggregator AWS account."
+  SupportAggregatorRoleName:
+    Type: String
+    Description: "Required role in central aggregator account."
+    Default: "SupportAggregator"
+
+Resources:
+  GetSupportInfoRole:
+    Type: AWS::IAM::Role
+    # Role assumed from support cases central aggregator account to get support case info in this account
+    Properties:
+      RoleName: !Ref GetSupportInfoRoleName
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: TrustSupportAggregator
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${CentralAggregatorAwsAccountId}:role/${SupportAggregatorRoleName}"
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName: "read-support-cases"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "support:Describe*"
+                  - "support:"
+                # support: is necessary for programmatic support API
+                Resource: "*"

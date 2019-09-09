@@ -1,0 +1,398 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: >-
+  Deploy pipeline for support cases aggregation
+
+#===================================================================================
+# Parameters MUST be updated; bucket name MUST BE UNIQUE and AVAILABLE
+#===================================================================================
+Parameters:
+  # specifying bucket name as parameter is necessary to avoid circular dependency
+  CloudTrailBucketName: # provide name of your choice for bucket during CloudFormation stack creation time
+    Type: String
+  OrgSupportViewerRoleArn:
+    Type: String
+    Default: "arn:aws:iam::*:role/GetSupportInfoRole"
+  OrgListAccountsViewerRoleArn:
+    Type: String
+    Default: "" # If org master is separate account, provide role arn with perms to list accounts
+  SupportCasesDDBTableName:
+    Type: String
+    Default: "support-cases"
+
+Conditions: # evaluated only during create stack
+  OrgListAccountsViewerRoleArnExists: !Not [!Equals [!Ref OrgListAccountsViewerRoleArn, "" ]]
+  OrgListAccountsViewerRoleArnDoesNotExists: !Equals [!Ref OrgListAccountsViewerRoleArn, "" ]
+
+#==================================================
+# Resources
+#==================================================
+Resources:
+
+  #==================================================
+  # DynamoDB
+  #==================================================
+  # Support Cases extension
+  SupportCasesTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain # retaining DDB after stack deletion
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: caseId
+          AttributeType: S
+      KeySchema:
+        -
+          AttributeName: caseId
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: !Ref SupportCasesDDBTableName
+
+  #==================================================
+  # Managed IAM Policies
+  #==================================================
+  InvokeCoreLambdas:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: "Allows invoking of core Lambda functions."
+      Path: "/"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - 
+            Effect: "Allow"
+            Action:
+              - lambda:InvokeFunction
+              - lambda:GetFunction
+            Resource: !Join ['', ['arn:aws:lambda:*:', !Ref 'AWS::AccountId', ':function:*']]
+      ManagedPolicyName: "InvokeCoreLambdas"
+
+  PublishToDeadLetterQueue:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: "Allows publishing to Dead Letter Queue."
+      Path: "/"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - 
+            Effect: "Allow"
+            Action:
+              - sns:Publish
+              - sns:Subscribe
+              - sns:ConfirmSubscription
+              - sns:Unsubscribe
+            Resource: !Ref DefaultDeadLetterQueue
+      ManagedPolicyName: "PublishToDeadLetterQueue"
+
+  GetS3CloudTrailObjects:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: "Retrieve objects from S3 CloudTrail bucket"
+      Path: "/"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:GetObjectAcl
+              - s3:GetBucketAcl
+            Resource:
+              - !Join ['', ['arn:aws:s3:::', !Ref 'CloudTrailBucketName']]
+              - !Join ['', ['arn:aws:s3:::', !Ref 'CloudTrailBucketName', '/*']]
+      ManagedPolicyName: "GetS3CloudTrailObjects"
+
+  AssumeOrgMasterListAccountsViewerPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Condition: OrgListAccountsViewerRoleArnExists
+    Properties:
+      Description: "Allows central aggregator account to assume org master role"
+      Path: "/"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - sts:AssumeRole
+            Resource: !Ref OrgListAccountsViewerRoleArn
+      ManagedPolicyName: "AssumeOrgMasterListAccountsViewerPolicy"
+      Roles:
+        - !Ref SupportAggregator
+
+  ListAccountsViewerPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Condition: OrgListAccountsViewerRoleArnDoesNotExists
+    Properties:
+      Description: "Allows central aggregator account to list accounts"
+      Path: "/"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "organizations:ListAccounts"
+            Resource: "*"
+      ManagedPolicyName: "ListAccountsViewerPolicy"
+      Roles:
+        - !Ref SupportAggregator
+
+  #==================================================
+  # IAMRoles and IAM Inline Policies
+  #==================================================
+  ProcessCloudTrailS3NotifRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "ProcessCloudTrailS3Notif"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - !Ref InvokeCoreLambdas
+        - !Ref PublishToDeadLetterQueue
+        - !Ref GetS3CloudTrailObjects
+      Path: "/"
+
+  # Support case roles
+  SupportAggregator:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "SupportAggregator"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        - !Ref PublishToDeadLetterQueue
+      Path: "/"
+      Policies:
+        -
+          PolicyName: "assume-org-support-viewer"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action:
+                  - sts:AssumeRole
+                Resource: !Ref OrgSupportViewerRoleArn
+        -
+          PolicyName: "manage-support-cases-table"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:Scan
+                Resource:
+                  - !GetAtt SupportCasesTable.Arn
+                  - !Join ['', [!GetAtt 'SupportCasesTable.Arn', '/*']]
+
+  #==================================================
+  # SNS Topics
+  #==================================================
+  ## SNS Topic Policies hard code S3 bucket names rather than use !Ref because of this:
+  ## https://aws.amazon.com/premiumsupport/knowledge-center/unable-validate-destination-s3/
+          
+  DefaultDeadLetterQueue:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: "SupportDLQ"
+      TopicName: support-dead-letter-queues
+
+  CloudTrailChangesAllAccountsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: cloud-trail-changes
+
+  CloudTrailChangesAllAccountsTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref CloudTrailChangesAllAccountsTopic
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: AllowS3Publish
+            Effect: "Allow"
+            Action:
+              - sns:Publish
+            Principal:
+              AWS: "*"
+            Resource: !Ref CloudTrailChangesAllAccountsTopic
+            Condition:
+              ArnLike:
+                aws:SourceArn: !Join ['', ['arn:aws:s3:::', !Ref CloudTrailBucketName]]
+          -
+            Sid: AllowAccountSubscription
+            Effect: "Allow"
+            Action:
+              - sns:Subscribe
+            Principal:
+              AWS: !Join ['', ['arn:aws:iam::', !Ref 'AWS::AccountId', ':root']]
+            Resource: !Ref CloudTrailChangesAllAccountsTopic
+          -
+            Sid: "__default_statement_ID"
+            Effect: "Allow"
+            Principal:
+              AWS: "*"
+            Action:
+              - sns:GetTopicAttributes
+              - sns:SetTopicAttributes
+              - sns:AddPermission
+              - sns:RemovePermission
+              - sns:DeleteTopic
+              - sns:Subscribe
+              - sns:ListSubscriptionsByTopic
+              - sns:Publish
+              - sns:Receive
+            Resource: !Ref CloudTrailChangesAllAccountsTopic
+            Condition:
+              StringEquals:
+                AWS:SourceOwner: !Ref 'AWS::AccountId'
+
+  #==================================================
+  # S3 buckets
+  #==================================================
+  CloudTrailBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      # specifying bucket name is necessary to avoid circular dependency
+      # as the CloudTrailChangesAllAccountsTopic must allow the CloudTrail bucket to access it
+      BucketName: !Ref CloudTrailBucketName
+      NotificationConfiguration:
+        TopicConfigurations:
+          -
+            Event: s3:ObjectCreated:*
+            Topic: !Ref CloudTrailChangesAllAccountsTopic
+      AccessControl: Private
+    # Must wait for topic policy to be initialized first before topic configuration can be created
+    DependsOn: CloudTrailChangesAllAccountsTopicPolicy
+
+  CloudTrailBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref CloudTrailBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: AllowS3Publish
+            Effect: "Allow"
+            Principal:
+              Service: "cloudtrail.amazonaws.com"
+            Action:
+              - s3:PutObject
+              - s3:PutObjectAcl
+            Resource: !Join ['', ['arn:aws:s3:::', !Ref 'CloudTrailBucketName', '/*']]
+          -
+            Sid: AllowS3PermissionCheck
+            Effect: "Allow"
+            Principal:
+                Service: "cloudtrail.amazonaws.com"
+            Action:
+              - s3:GetBucketAcl
+            Resource: !Join ['', ['arn:aws:s3:::', !Ref 'CloudTrailBucketName']]
+
+  #==================================================
+  # Lambda functions
+  #==================================================
+  cloudtrailprocess:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: cloudtrail-process
+      Handler: cloudtrail_process.lambda_handler
+      Runtime: python3.6
+      CodeUri: ./build/cloudtrail_process.py
+      Layers:
+        - !Ref SupportCasesAggregatorBaseLayer
+      Description: >-
+        This lambda function will take in an S3 notification from the CloudTrail bucket via SNS topic,
+        fetch S3 object, process it and invoke support-cases-aggregator function.
+      MemorySize: 128
+      Timeout: 180
+      Role: !GetAtt ProcessCloudTrailS3NotifRole.Arn
+      DeadLetterQueue:
+        Type: SNS
+        TargetArn: !Ref DefaultDeadLetterQueue
+      Events:
+        CloudTrailTriggerSNS:
+          Type: SNS
+          Properties:
+            Topic: !Ref CloudTrailChangesAllAccountsTopic
+      Environment:
+        Variables:
+          LOGGING_LEVEL: INFO
+          SUPPORT_CASES_AGGREGATOR_LAMBDA_NAME: !Ref supportupdater
+
+  supportupdater:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: support-cases-aggregator
+      Handler: support_cases_aggregator.lambda_handler
+      Runtime: python3.6
+      CodeUri: ./build/support_cases_aggregator.py
+      Layers:
+        - !Ref SupportCasesAggregatorBaseLayer
+      Description: >-
+        This lambda function retrieves information for a given case and dumps it into a DynamoDB table.
+      MemorySize: 128
+      Timeout: 600
+      Role: !GetAtt SupportAggregator.Arn
+      DeadLetterQueue:
+        Type: SNS
+        TargetArn: !Ref DefaultDeadLetterQueue
+      Events:
+        ScheduleTwiceWeeklySyncCheck:
+          Type: Schedule
+          Properties:
+            Schedule: rate(3 days)
+      ReservedConcurrentExecutions: 1
+      Environment:
+        Variables:
+          LOGGING_LEVEL: INFO
+          ORG_MASTER_ACCOUNT_VIEWER_ROLE: !Ref OrgListAccountsViewerRoleArn
+          SUPPORT_CASES_TABLE_NAME: !Ref SupportCasesDDBTableName
+
+  SupportCasesAggregatorBaseLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      Description: Lambda Layer for basic utilities and dependencies used by Support Cases Aggregator related functions.
+      ContentUri: layersbuild/
+      CompatibleRuntimes:
+        - python3.6
+
+Outputs:
+  OrgListAccountsViewerRoleArnExists:
+    Description: Org list accounts role provided
+    Condition: OrgListAccountsViewerRoleArnExists
+    Value: "Environment setup with Central Aggregator account separate from AWS Organizations master account"
+
+  OrgListAccountsViewerRoleArnDoesNotExists:
+    Description: Org list accounts role not provided
+    Condition: OrgListAccountsViewerRoleArnDoesNotExists
+    Value: "Environment setup with AWS Organizations master account as Central Aggregator account"

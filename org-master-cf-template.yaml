@@ -1,0 +1,39 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Role in AWS organizations master account'
+Parameters:
+  OrgListAccountsViewerRoleName:
+    Type: String
+    Default: "OrgListAccountsViewer"
+  CentralAggregatorAwsAccountId:
+    Type: Number
+    Description: "Account Id of the central aggregator AWS account."
+  SupportAggregatorRoleName:
+    Type: String
+    Description: "Required role in central aggregator account."
+    Default: "SupportAggregator"
+
+Resources:
+  OrgListAccountsViewer:
+    Type: AWS::IAM::Role
+    # Role assumed from support cases central aggregator account to get list of accounts
+    Properties:
+      RoleName: !Ref OrgListAccountsViewerRoleName
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: TrustSupportAggregator
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${CentralAggregatorAwsAccountId}:role/${SupportAggregatorRoleName}"
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName: "list-org-accounts"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "organizations:ListAccounts"
+                Resource: "*"
