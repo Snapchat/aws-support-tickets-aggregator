@@ -1,0 +1,10 @@
+[BASIC]
+good-names=
+    i,
+    e,
+    logger,
+    k,
+    v,
+    s3,
+
+disable=C0330
