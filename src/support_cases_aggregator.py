@@ -11,7 +11,7 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError, BotoCoreError
 
-from src.aws_common_utils_layer import (
+from aws_common_utils_layer import (
     get_session_with_arn,
     get_session,
     clear_empty_strings,
