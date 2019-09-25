@@ -1,5 +1,10 @@
 # Development, Build and Deploy Guide
 
+## Environment Prerequisites
+Only python3 is currently supported.
+
+> To maintain multiple versions on python locally, use [pyenv](https://github.com/pyenv/pyenv)
+
 ## Build and Deploy
 ```bash
 ./run_cloudformation.sh
