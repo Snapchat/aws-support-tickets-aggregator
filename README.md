@@ -79,6 +79,8 @@ If you do not use AWS Organizations, modify [list_account_ids()](src/support_cas
 ## Project Resources
 [Development Guide](./docs/development.md)
 
+[Contributing Guide](./CONTRIBUTING.md)
+
 ## License
 
 [The MIT License](http://opensource.org/licenses/MIT)
