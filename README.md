@@ -46,6 +46,13 @@ Run the shell script:
 
 > For instructions on how to set up an AWS command line profile, see the [AWS documentation](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html).
 
+You may use any name in the `<stack name>` parameter. We suggest `central-support`.
+
+###### Setting the CloudTrail S3 Bucket
+CloudTrail trails from every account you wish to monitor must be deposit their events into the newly created CloudTrail S3 bucket specified in the `--ct_s3_bucket` parameter above.
+
+If you are using an organization CloudTrail trail, you only need to modify that organization trail S3 bucket location. If not, you must set a CloudTrail trail in every member account you wish to monitor to use the newly created S3 bucket.
+
 #### Member Account (Spoke)
 Create an IAM role called `GetSupportInfoRole` in every member account with `support:` and `support:Describe*` permissions that trusts the `SupportAggregator` role in the central aggregator account.
 
