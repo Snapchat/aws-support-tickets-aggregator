@@ -12,17 +12,17 @@ This project use `unittest` module from `Python`
 
 #### All tests
 ```bash
-python -m unittest tests/*.py
+python3 -m unittest tests/*.py
 ```
 
 #### All tests in single class
 e.g:
 ```bash
-python -m unittest tests.test_support_case_aggregator.SupportCaseAggregator
+python3 -m unittest tests.test_support_case_aggregator.SupportCaseAggregator
 ```
 
 #### Single test
 e.g:
 ```bash
-python -m unittest tests.test_support_case_aggregator.SupportCaseAggregator.test_get_all_existing_cases
+python3 -m unittest tests.test_support_case_aggregator.SupportCaseAggregator.test_get_all_existing_cases
 ```
