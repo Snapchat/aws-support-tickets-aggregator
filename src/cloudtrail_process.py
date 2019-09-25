@@ -9,7 +9,7 @@ import os
 from collections import defaultdict
 
 import boto3
-from src.aws_common_utils_layer import (
+from aws_common_utils_layer import (
     get_gzipped_s3_objects_from_sns_msg_of_dict,
     set_logging_level,
 )

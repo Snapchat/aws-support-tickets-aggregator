@@ -7,6 +7,8 @@ when your setup has separate Central Aggregator and Master accounts.
 aws cloudformation deploy --stack-name <stack name> --template-file org-master-cf-template.yaml --parameter-overrides CentralAggregatorAwsAccountId=<central aggregator account id> --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --profile aws_profile 
 ```
 
+You may use any name in the `<stack name>` parameter (e.g. `master-acct-support`).
+
 #### Example Role Policy
 Above CloudFormation stack will create role with policies as shown below.
 
