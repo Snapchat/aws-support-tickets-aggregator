@@ -7,7 +7,7 @@ Member account role setup [CloudFormation template](../member-acc-cf-template.ya
 aws cloudformation deploy --stack-name <stack name> --template-file member-acc-cf-template.yaml --parameter-overrides CentralAggregatorAwsAccountId=<central aggregator account id> --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --profile aws_profile 
 ```
 
-You may use any name in the `<stack name>` parameter. We suggest `member-acct-support`.
+You may use any name in the `<stack name>` parameter (e.g. `member-acct-support`).
 
 #### Example Role Policy
 Above CloudFormation stack will create role with policies as shown below.

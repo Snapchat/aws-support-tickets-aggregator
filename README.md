@@ -46,7 +46,7 @@ Run the shell script:
 
 > For instructions on how to set up an AWS command line profile, see the [AWS documentation](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html).
 
-You may use any name in the `<stack name>` parameter. We suggest `central-support`.
+You may use any name in the `<stack name>` parameter (e.g. `central-support`).
 
 ###### Setting the CloudTrail S3 Bucket
 CloudTrail trails from every account you wish to monitor must be deposit their events into the newly created CloudTrail S3 bucket specified in the `--ct_s3_bucket` parameter above.
