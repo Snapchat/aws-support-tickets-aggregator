@@ -326,7 +326,7 @@ Resources:
     Properties:
       FunctionName: cloudtrail-process
       Handler: cloudtrail_process.lambda_handler
-      Runtime: python3.6
+      Runtime: python3.8
       CodeUri: ./build/cloudtrail_process.py
       Layers:
         - !Ref SupportCasesAggregatorBaseLayer
@@ -354,7 +354,7 @@ Resources:
     Properties:
       FunctionName: support-cases-aggregator
       Handler: support_cases_aggregator.lambda_handler
-      Runtime: python3.6
+      Runtime: python3.8
       CodeUri: ./build/support_cases_aggregator.py
       Layers:
         - !Ref SupportCasesAggregatorBaseLayer
@@ -385,6 +385,8 @@ Resources:
       ContentUri: layersbuild/
       CompatibleRuntimes:
         - python3.6
+        - python3.7
+        - python3.8
 
 Outputs:
   OrgListAccountsViewerRoleArnExists:
