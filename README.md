@@ -1,6 +1,8 @@
 # AWS Support Cases Aggregator
 _AWS Support Cases aggregation for a multi-account organization_
 
+[![ci](https://github.com/Snapchat/aws-support-tickets-aggregator/workflows/ci/badge.svg?branch=master)](https://github.com/Snapchat/aws-support-tickets-aggregator/actions?query=workflow%3Aci+branch%3Amaster)
+
 This is a simple CloudFormation-based serverless pipeline for collecting support case information from all users across an AWS Organization into a single database.
 
 This allows users to easily discover and monitor all Support Cases within an organization. See our [AWS Blog Post](https://aws.amazon.com/blogs/mt/) for details.
