@@ -65,7 +65,7 @@ Create an IAM role called `GetSupportInfoRole` in every member account with `sup
 1. Create an `organization trail` in your AWS organizations master account and configure the CloudTrail service to send events to your CloudTrail bucket.
     > For details on organization trails, see the AWS docs on [Creating a Trail for an Organization](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/creating-trail-organization.html).
 
-    > Deposit CloudTrail events into the CloudTrail S3 bucket specified in [central aggregrator prerequisites #2](#prerequisite-steps).
+    > Deposit CloudTrail events into the CloudTrail S3 bucket specified in [central aggregator prerequisites #2](#prerequisite-steps).
 
     > You may also configure individual member accounts with CloudTrail trails that send events to the CloudTrail S3 bucket.
 
