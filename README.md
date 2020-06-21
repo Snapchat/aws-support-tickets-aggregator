@@ -87,4 +87,4 @@ If you do not use AWS Organizations, modify [list_account_ids()](src/support_cas
 
 [The MIT License](http://opensource.org/licenses/MIT)
 
-Copyright (c) 2019 Snap Inc.
+Copyright (c) 2020 Snap Inc.
