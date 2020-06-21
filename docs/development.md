@@ -1,7 +1,7 @@
 # Development, Build and Deploy Guide
 
 ## Environment Prerequisites
-Only python3 is currently supported.
+Only python3 is supported. [https://www.python.org/doc/sunset-python-2/](Python2 has been deprecated since January 1, 2020) and we strongly urge you to use python3.
 
 > To maintain multiple versions on python locally, use [pyenv](https://github.com/pyenv/pyenv)
 
